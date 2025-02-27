@@ -122,8 +122,140 @@ When a new node joins the network, it goes through the following steps:
 - **`getpeerinfo` RPC Command**: This command returns a list of connected peers and their status.
 - **Wireshark**: Can be used to analyze Bitcoin network traffic and peer communication.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------------------
 
-### **Summary**
+ ----------------------------------------------------------Pseudo-Code -----------------------------------------------------------------------------------
+// Step 1: Initialize the node
+function initializeNode():
+    // Load configuration (e.g., network type, data directory)
+    config = loadConfig()
+    
+    // Initialize data structures
+    peerList = []  // List of known peers
+    connectedPeers = []  // List of currently connected peers
+    bannedPeers = []  // List of banned peers
 
-Peer discovery in Bitcoin is a decentralized and robust process that ensures nodes can join the network, synchronize the blockchain, and participate in transaction and block propagation. By leveraging DNS seed nodes, peer address propagation, and secure communication protocols, Bitcoin nodes maintain a resilient and trustless P2P network.
+    // Load cached peers from disk (if available)
+    if fileExists("peers.dat"):
+        peerList = loadPeersFromFile("peers.dat")
+
+    // Start listening for inbound connections
+    startListening(config.listenPort)
+
+    // Step 2: Discover initial peers
+    discoverInitialPeers()
+
+    // Step 3: Connect to peers
+    connectToPeers()
+
+    // Step 4: Start synchronization and participation
+    synchronizeBlockchain()
+    participateInNetwork()
+
+// Step 2: Discover initial peers
+function discoverInitialPeers():
+    // Query DNS seed nodes for initial peer list
+    dnsSeeds = ["seed.bitcoin.sipa.be", "dnsseed.bluematt.me", "dnsseed.bitcoin.dashjr.org"]
+    
+    for seed in dnsSeeds:
+        peers = queryDNSSeed(seed)
+        for peer in peers:
+            if peer not in peerList and peer not in bannedPeers:
+                peerList.append(peer)
+
+    // Save updated peer list to disk
+    savePeersToFile("peers.dat", peerList)
+
+// Step 3: Connect to peers
+function connectToPeers():
+    // Establish outbound connections
+    maxOutboundConnections = 8
+    for peer in peerList:
+        if length(connectedPeers) >= maxOutboundConnections:
+            break
+        if peer not in connectedPeers and peer not in bannedPeers:
+            if connectToPeer(peer):
+                connectedPeers.append(peer)
+
+    // Listen for inbound connections (handled asynchronously)
+    while true:
+        inboundPeer = acceptInboundConnection()
+        if inboundPeer not in bannedPeers:
+            connectedPeers.append(inboundPeer)
+
+// Step 4: Synchronize the blockchain
+function synchronizeBlockchain():
+    for peer in connectedPeers:
+        // Request headers and blocks from peers
+        headers = requestHeaders(peer)
+        for header in headers:
+            if not hasBlock(header.hash):
+                block = requestBlock(peer, header.hash)
+                if validateBlock(block):
+                    saveBlock(block)
+
+// Step 5: Participate in the network
+function participateInNetwork():
+    while true:
+        // Relay transactions and blocks
+        for peer in connectedPeers:
+            newTransactions = getNewTransactions()
+            for tx in newTransactions:
+                sendTransaction(peer, tx)
+
+            newBlocks = getNewBlocks()
+            for block in newBlocks:
+                sendBlock(peer, block)
+
+        // Exchange peer addresses
+        for peer in connectedPeers:
+            sendAddrRequest(peer)
+            addrResponse = receiveAddrResponse(peer)
+            for newPeer in addrResponse:
+                if newPeer not in peerList and newPeer not in bannedPeers:
+                    peerList.append(newPeer)
+
+        // Save updated peer list to disk periodically
+        savePeersToFile("peers.dat", peerList)
+
+        // Monitor peer behavior and ban misbehaving peers
+        for peer in connectedPeers:
+            if isMisbehaving(peer):
+                banPeer(peer)
+                connectedPeers.remove(peer)
+                bannedPeers.append(peer)
+
+// Helper functions
+function queryDNSSeed(seed):
+    // Perform DNS query to get a list of peers
+    return resolveDNS(seed)
+
+function connectToPeer(peer):
+    // Attempt to establish a connection to the peer
+    return establishConnection(peer.ip, peer.port)
+
+function isMisbehaving(peer):
+    // Check if the peer is sending invalid data or behaving maliciously
+    return checkPeerBehavior(peer)
+
+function banPeer(peer):
+    // Add the peer to the banned list
+    bannedPeers.append(peer)
+
+function savePeersToFile(filename, peers):
+    // Save the peer list to disk
+    writeToFile(filename, peers)
+
+function loadPeersFromFile(filename):
+    // Load the peer list from disk
+    return readFromFile(filename)
+
+
+
+
+Example Workflow
+1-The node starts and loads its configuration.
+2-It queries DNS seed nodes and obtains a list of peers.
+3-It connects to 8 outbound peers and listens for inbound connections.
+4-It synchronizes the blockchain by requesting blocks from its peers.
+5-It participates in the network by relaying transactions and blocks, and exchanging peer addresses.
